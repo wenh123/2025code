@@ -4,6 +4,7 @@ from sklearn.preprocessing import MinMaxScaler
 import tensorflow as tf
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, Dense, LayerNormalization, MultiHeadAttention, Dropout, GlobalAveragePooling1D
+from tensorflow.keras.layers import LSTM, Concatenate
 from sklearn.metrics import mean_squared_error
 import math
 import matplotlib.pyplot as plt
@@ -39,7 +40,6 @@ def calculate_rmse_numba(y_true, y_pred):
     return np.sqrt(np.mean((y_true - y_pred) ** 2))
 
 # Load and prepare the dataset
-#file_path = 'TSLA.csv'
 df = yf.download('SPY', start='2000-01-01', end='2025-01-01')
 data = df[['Close']].values
 scaler = MinMaxScaler(feature_range=(0, 1))
@@ -64,8 +64,7 @@ X_test = X_test.reshape(X_test.shape[0], X_test.shape[1], 1)
 # Transformer Block
 def transformer_encoder(inputs, head_size, num_heads, ff_dim, dropout=0):
     """
-    Standard transformer encoder block.
-    Not optimized with Numba as it uses TensorFlow operations.
+    Standard transformer encoder block with improved parameters.
     """
     x = LayerNormalization(epsilon=1e-6)(inputs)
     x = MultiHeadAttention(
@@ -82,12 +81,30 @@ def transformer_encoder(inputs, head_size, num_heads, ff_dim, dropout=0):
     x = Dense(inputs.shape[-1])(x)
     return x + res
 
-# Model Definition with improved parameters
+# LSTM Block
+def lstm_block(inputs, units, dropout=0):
+    """
+    LSTM block with residual connection
+    """
+    x = LSTM(units, return_sequences=True)(inputs)
+    x = Dropout(dropout)(x)
+    return x
+
+# Hybrid Model Definition
 inputs = Input(shape=(X_train.shape[1], X_train.shape[2]))
-x = transformer_encoder(inputs, head_size=256, num_heads=4, ff_dim=4, dropout=0.1)
-x = GlobalAveragePooling1D(data_format='channels_first')(x)
+
+# Transformer branch
+transformer_output = transformer_encoder(inputs, head_size=256, num_heads=4, ff_dim=4, dropout=0.1)
+
+# LSTM branch
+lstm_output = lstm_block(inputs, units=128, dropout=0.1)
+
+# Combine branches
+combined = Concatenate()([transformer_output, lstm_output])
+x = GlobalAveragePooling1D(data_format='channels_first')(combined)
 x = Dropout(0.1)(x)
-x = Dense(20, activation="relu")(x)
+x = Dense(32, activation="relu")(x)
+x = Dense(16, activation="relu")(x)
 outputs = Dense(1, activation="linear")(x)
 
 model = Model(inputs=inputs, outputs=outputs)
@@ -99,25 +116,32 @@ model.compile(
 # Model Summary
 model.summary()
 
-# Train the model with early stopping
+# Train the model with early stopping and reduced learning rate on plateau
 early_stopping = tf.keras.callbacks.EarlyStopping(
     monitor='val_loss',
-    patience=5,
+    patience=10,
     restore_best_weights=True
+)
+
+reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(
+    monitor='val_loss',
+    factor=0.2,
+    patience=5,
+    min_lr=0.0001
 )
 
 history = model.fit(
     X_train, y_train,
     validation_data=(X_test, y_test),
     epochs=50,
-    batch_size=64,
-    callbacks=[early_stopping],
+    batch_size=32,
+    callbacks=[early_stopping, reduce_lr],
     verbose=1
 )
 
 # Make predictions
-train_predict = model.predict(X_train, batch_size=64)
-test_predict = model.predict(X_test, batch_size=64)
+train_predict = model.predict(X_train, batch_size=32)
+test_predict = model.predict(X_test, batch_size=32)
 
 # Inverse transform predictions
 train_predict = scaler.inverse_transform(train_predict)
@@ -139,7 +163,7 @@ print(f"Test RMSE: {test_rmse}")
 end_time = time.time()
 print(f"Training time: {end_time - start_time} seconds")
 
-# Plotting the results with improved visualization
+# Plotting the results
 trainPredictPlot = np.empty_like(data_scaled)
 trainPredictPlot[:, :] = np.nan
 trainPredictPlot[time_step:len(train_predict)+time_step, :] = train_predict
@@ -161,7 +185,7 @@ plt.plot(testPredictPlot,
          label='Testing Predictions', 
          alpha=0.6,
          linewidth=2)
-plt.title('TESLA Stock Price Prediction using Transformer (Numba Optimized)',
+plt.title('SPY Stock Price Prediction using Hybrid Transformer-LSTM Model',
          fontsize=14,
          pad=20)
 plt.xlabel('Time', fontsize=12)

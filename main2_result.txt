@@ -1,0 +1,3 @@
+Train RMSE: 20.506742506056913
+Test RMSE: 16.226672206066095
+training time: 68.8 seconds
