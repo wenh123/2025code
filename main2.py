@@ -161,7 +161,7 @@ plt.plot(testPredictPlot,
          label='Testing Predictions', 
          alpha=0.6,
          linewidth=2)
-plt.title('TESLA Stock Price Prediction using Transformer (Numba Optimized)',
+plt.title('SPY Stock Price Prediction using Transformer (Numba Optimized)',
          fontsize=14,
          pad=20)
 plt.xlabel('Time', fontsize=12)

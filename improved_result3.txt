@@ -1,0 +1,10 @@
+Day 1 Predictions:
+MAE: 10.9691, RMSE: 13.2142, R2: -1.7856
+Day 2 Predictions:
+MAE: 16.0448, RMSE: 17.6857, R2: -3.9278
+Day 3 Predictions:
+MAE: 11.0151, RMSE: 13.2196, R2: -1.7187
+Day 4 Predictions:
+MAE: 12.6198, RMSE: 14.5114, R2: -2.2321
+Day 5 Predictions:
+MAE: 14.8940, RMSE: 16.9357, R2: -3.3516
