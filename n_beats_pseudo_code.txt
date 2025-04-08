@@ -1,0 +1,58 @@
+Algorithm: N-BEATS with GGO Optimization for Time Series Prediction
+
+Input: 
+    T: Time series data
+    w: Window size
+    α: Training split ratio
+    N_pop: Population size for GGO
+    N_iter: Number of iterations for GGO
+    
+Output: 
+    M: Optimized N-BEATS model
+    P: Predictions
+
+Procedure Main():
+    // Data Preparation
+    D_scaled ← MinMaxScaler(T)
+    D_train, D_test ← SplitData(D_scaled, α)
+    X_train, y_train ← CreateSlidingWindows(D_train, w)
+    X_test, y_test ← CreateSlidingWindows(D_test, w)
+    
+    // GGO Optimization
+    bounds ← DefineBounds()
+    P ← InitializePopulation(N_pop, bounds)
+    F ← EvaluatePopulation(P)
+    g_best ← GetGlobalBest(P, F)
+    
+    For i ← 1 to N_iter do:
+        For each candidate c in P do:
+            c_new ← UpdateCandidate(c, g_best)
+            f_new ← EvaluateCandidate(c_new)
+            If f_new < F[c] then:
+                P[c] ← c_new
+                F[c] ← f_new
+                UpdateGlobalBest(g_best, c_new, f_new)
+    
+    // Final Model Training
+    M ← BuildNBEATS(g_best)
+    TrainModel(M, X_train, y_train, X_test, y_test)
+    
+    Return M, PredictValues(M, X_test)
+
+Function BuildNBEATS(config):
+    model ← empty_model
+    For i ← 1 to config.n_blocks do:
+        block ← CreateBlock(config.n_layers, config.hidden_units)
+        residual, forecast ← ProcessBlock(block)
+        model.add(block)
+    Return model
+
+Function CreateBlock(n_layers, hidden_units):
+    block ← empty_block
+    For i ← 1 to n_layers do:
+        layer ← DenseLayer(hidden_units)
+        block.add(layer)
+    theta ← DenseLayer(input_size + output_size)
+    backcast, forecast ← SplitTheta(theta)
+    residual ← ComputeResidual(input, backcast)
+    Return residual, forecast
