@@ -5,7 +5,6 @@ import tensorflow as tf
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, Dense, Lambda, add, Dropout
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
-import yfinance as yf
 import time
 import matplotlib.pyplot as plt
 from numba import jit
@@ -34,8 +33,12 @@ def calculate_rmse_numba(y_true, y_pred):
     """
     return np.sqrt(np.mean((y_true - y_pred) ** 2))
 
-# Download and prepare the dataset
-df = yf.download('SPY', start='2000-01-01', end='2025-01-01')
+# Load and prepare the dataset from CSV
+df = pd.read_csv('SPY.csv')
+# Remove leading/trailing spaces from column names
+df.columns = df.columns.str.strip()
+df['Date'] = pd.to_datetime(df['Date'], format='%m/%d/%y')
+df = df[(df['Date'] >= '2000-01-01') & (df['Date'] <= '2025-01-01')]
 data = df[['Close']].values
 scaler = MinMaxScaler(feature_range=(0, 1))
 data_scaled = scaler.fit_transform(data)
